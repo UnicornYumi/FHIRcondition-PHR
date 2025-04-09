@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>病人管理</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            background-color: #f2f2f2;
+            position: relative; /* 使绝对定位相对于此元素 */
+        }
+        .language-buttons {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+        button {
+            padding: 10px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            font-size: 24px;
+            margin-top: 20px;
+        }
+        .patient-list {
+            margin-top: 40px;
+            width: 80%;
+            max-width: 600px;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            position: relative; /* 为绝对定位提供参考 */
+        }
+        .patient-list table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .patient-list th, .patient-list td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+        .add-patient-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+    </style>
+    <script>
+        let currentLanguage = 'zh-CN'; // 默认语言
+        let patients = []; // 存储病人信息
+
+        function changeLanguage(language) {
+            currentLanguage = language;
+            updateMessage();
+        }
+
+        function updateMessage() {
+            let message = '';
+            switch (currentLanguage) {
+                case 'zh-CN':
+                    message = '你好，世界！这是简体中文。';
+                    break;
+                case 'zh-TW':
+                    message = '你好，世界！這是繁體中文。';
+                    break;
+                case 'en':
+                    message = 'Hello, World! This is English.';
+                    break;
+                case 'id':
+                    message = 'Halo Dunia! Ini bahasa Indonesia.';
+                    break;
+                default:
+                    message = '你好，世界！';
+            }
+            document.getElementById('message').innerText = message;
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file && file.type === 'text/csv') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const text = e.target.result;
+                    parseCSV(text);
+                };
+                reader.readAsText(file);
+            } else {
+                alert('请上传一个有效的 CSV 文件。');
+            }
+        }
+
+        function parseCSV(text) {
+            const rows = text.split('\n');
+            patients = rows.map(row => {
+                const [id, name] = row.split(',');
+                return { id, name };
+            }).filter(patient => patient.id && patient.name);
+            displayPatients();
+        }
+
+        function displayPatients() {
+            const tableBody = document.getElementById('patient-table-body');
+            tableBody.innerHTML = ''; // 清空现有数据
+            patients.forEach(patient => {
+                const row = document.createElement('tr');
+                // 添加 name 参数到 URL
+                row.innerHTML = `<td><a href="recorditems.html?id=${patient.id}&name=${patient.name}">${patient.name}</a></td><td>${patient.id}</td>`;
+                tableBody.appendChild(row);
+            });
+
+        }
+
+        function addPatient() {
+            window.location.href = 'add_patient.html'; // 跳转到新增病人页面
+        }
+
+        // 页面加载时更新默认消息
+        window.onload = updateMessage;
+    </script>
+</head>
+<body>
+
+<div class="language-buttons">
+    <button onclick="changeLanguage('zh-CN')">简体中文</button>
+    <button onclick="changeLanguage('zh-TW')">繁體中文</button>
+    <button onclick="changeLanguage('en')">English</button>
+    <button onclick="changeLanguage('id')">Bahasa Indonesia</button>
+</div>
+
+<div id="message" class="message">你好，世界！</div>
+
+<div class="patient-list">
+    <input type="file" accept=".csv" onchange="handleFileUpload(event)">
+    <h2>病人列表</h2>
+    <button class="add-patient-button" onclick="addPatient()">新增病人</button>
+    <table>
+        <thead>
+            <tr>
+                <th>病人名字</th>
+                <th>病人ID</th>
+            </tr>
+        </thead>
+        <tbody id="patient-table-body"></tbody>
+    </table>
+</div>
+
+</body>
+</html>

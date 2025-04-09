@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Combined CSV and Vital Sign Observation</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        tr:hover {
+            background-color: #f2f2f2;
+            cursor: pointer;
+        }
+        #display {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        #radioButtonsContainer {
+            margin-top: 20px;
+        }
+        #result {
+            margin-top: 20px;
+        }
+    </style>
+    <script src="Cookie.js"></script>
+    <script src="dateTime.js"></script>
+    <script src="HTTP2024.js"></script>
+    <script src="setting.js"></script>
+</head>
+<body>
+
+<h2>CSV Data Display</h2>
+<div id="table-container"></div>
+<div id="display">Click on a row to see details here.</div>
+
+<h2>Vital Sign Options</h2>
+<div id="radioButtonsContainer"></div>
+<p id="selectedOutput">Selected: None</p>
+
+<h1>Vital Sign Observation</h1>
+<label for="patientId">Patient ID:</label>
+<input type="text" id="patientId" placeholder="Enter patient ID"><br><br>
+
+<label id="itemDisplay" for="inputValue">Heart Rate (beats per minute):</label>
+<input type="text" id="inputValue" placeholder="Enter value"><br><br>
+
+<button onclick="updateObservation()">Submit</button>
+
+<h2>Observation JSON:</h2>
+<div id="result"></div>
+
+<script>
+// CSV Data Display
+const csvUrl = 'PHR_Patient_List.csv';
+
+function parseCSV(data) {
+    const rows = data.split('\n');
+    const headers = rows[0].split(',');
+    const records = rows.slice(1).map(row => {
+        const values = row.split(',');
+        return headers.reduce((obj, header, index) => {
+            obj[header.trim()] = values[index].trim();
+            return obj;
+        }, {});
+    });
+    return records;
+}
+
+function displayTable(records) {
+    const tableContainer = document.getElementById('table-container');
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const tbody = document.createElement('tbody');
+
+    const headerRow = document.createElement('tr');
+    Object.keys(records[0]).forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+
+    records.forEach(record => {
+        const row = document.createElement('tr');
+        Object.values(record).forEach(value => {
+            const td = document.createElement('td');
+            td.textContent = value;
+            row.appendChild(td);
+        });
+
+        row.addEventListener('click', () => {
+            document.getElementById('display').textContent = `PHR_ID: ${record.PHR_ID}, Name: ${record.Name}`;
+            setCookie("patientID", record.PHR_ID, 1);
+            setCookie("patientName", record.Name, 1);
+        });
+
+        tbody.appendChild(row);
+    });
+
+    table.appendChild(thead);
+    table.appendChild(tbody);
+    tableContainer.appendChild(table);
+}
+
+fetch(csvUrl)
+    .then(response => response.text())
+    .then(data => {
+        const records = parseCSV(data);
+        displayTable(records);
+    })
+    .catch(error => {
+        console.error('Error fetching CSV:', error);
+    });
+
+// Vital Sign Options
+async function loadCSV() {
+    try {
+        const response = await fetch('vitalSignItems.csv');
+        const csvData = await response.text();
+        const data = parseCSV(csvData);
+        
+        data.forEach(item => {
+            if (item.LOINC) {
+                const radioButton = document.createElement("input");
+                radioButton.type = "radio";
+                radioButton.name = "measurement";
+                radioButton.value = item.display;
+                radioButton.setAttribute("data-loinc", item.LOINC);
+                radioButton.setAttribute("data-display", item.display);
+                radioButton.setAttribute("data-unitCode", item.unitCode);
+                radioButton.setAttribute("data-unit", item.unit);
+                radioButton.addEventListener("change", displaySelection);
+
+                const label = document.createElement("label");
+                label.textContent = `${item.display} (${item.unitCode}, ${item.unit})`;
+                label.htmlFor = item.LOINC;
+
+                radioButtonsContainer.appendChild(radioButton);
+                radioButtonsContainer.appendChild(label);
+                radioButtonsContainer.appendChild(document.createElement("br"));
+            }
+        });
+    } catch (error) {
+        console.error("Error loading CSV file:", error);
+    }
+
+}
+
+function displaySelection(event) {
+    const selectedLOINC = event.target.getAttribute("data-loinc");
+    const selectedDisplay = event.target.getAttribute("data-display");
+    const selectedUnitCode = event.target.getAttribute("data-unitCode");
+    const selectedUnit = event.target.getAttribute("data-unit");
+
+    let selectedItem = {
+        LOINC: selectedLOINC,
+        display: selectedDisplay,
+        unitCode: selectedUnitCode,
+        unit: selectedUnit
+    };
+    setCookie("selectedLOINC", selectedItem.LOINC, 1);
+    setCookie("selectedDisplay", selectedItem.display, 1);
+    setCookie("selectedUnitCode", selectedItem.unitCode, 1);
+    setCookie("selectedUnit", selectedItem.unit, 1);
+    selectedOutput.textContent = `Selected: ${selectedItem.display} (LOINC: ${selectedItem.LOINC}, UnitCode: ${selectedItem.unitCode}, Unit: ${selectedItem.unit})`;
+}
+
+loadCSV();
+
+// Vital Sign Observation
+let patientId = getCookie("patientID");     
+let patientName = getCookie("patientName"); 
+let LOINC = getCookie("selectedLOINC"); 
+let display = getCookie("selectedDisplay"); 
+document.getElementById("itemDisplay").innerHTML = display;
+let unitCode = getCookie("selectedUnitCode"); 
+let unit = getCookie("selectedUnit"); 
+
+document.getElementById("patientId").value = getCookie("patientID");
+
+function updateObservation() {
+    var JSONObj = {
+        "resourceType": "Observation",
+        "id": "ExampleAverageRestingHeartRate",
+        "status": "final",
+        "category": [{
+            "coding": [{
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs",
+                "display": "Vital Signs"
+            }]
+        }],
+        "code": {
+            "coding": [{
+                "system": "http://loinc.org",
+                "code": LOINC,
+                "display": display
+            }]
+        },
+        "subject": {
+            "reference": "Patient/" + patientId 
+        },
+        "effectiveDateTime": getFormattedTime(),
+        "valueQuantity": {
+            "value": document.getElementById("inputValue").value,
+            "unit": unit,
+            "system": "http://unitsofmeasure.org",
+            "code": unitCode
+        }
+    };
+
+    var jsonStr = JSON.stringify(JSONObj);
+    var apiURL = FHIRrootURL + "Observation";
+    sendHttpPost(apiURL, jsonStr, callBack);
+}
+
+function callBack(ret) {
+    document.getElementById("result").innerHTML = "<pre>" + ret + "</pre>";
+}
+</script>
+
+</body>
+</html>

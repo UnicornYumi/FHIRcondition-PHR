@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生理检测记录</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            background-color: #f2f2f2;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .json-output {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            width: 800px;
+            text-align: left;
+            margin-top: 20px;
+        }
+    </style>
+    <script>
+        function getPatientData() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const patientId = urlParams.get('id');
+            const patientName = urlParams.get('name');
+
+            document.getElementById('patient-id').innerText = patientId;
+            document.getElementById('patient-name').innerText = patientName;
+        }
+
+        let records = []; // 存储生理检测记录
+
+        function submitData() {
+            const height = document.getElementById('height').value;
+            const weight = document.getElementById('weight').value;
+            const temperature = document.getElementById('temperature').value;
+            const bloodPressure = document.getElementById('blood-pressure').value;
+            const bloodSugar = document.getElementById('blood-sugar').value;
+
+            const record = {
+                resourceType: "Observation",
+                id: generateId(), // 生成唯一 ID
+                meta: {
+                    versionId: "1",
+                    lastUpdated: new Date().toISOString(),
+                    source: "#hBturIZEEshtHUQo"
+                },
+                status: "final",
+                category: [{
+                    coding: [{
+                        system: "http://terminology.hl7.org/CodeSystem/observation-category",
+                        code: "vital-signs",
+                        display: "Vital Signs"
+                    }]
+                }],
+                subject: {
+                    reference: "Patient/45531182" // 示例病人引用
+                },
+                effectiveDateTime: new Date().toISOString(),
+                valueQuantity: {
+                    height: {
+                        value: parseFloat(height),
+                        unit: "cm",
+                        system: "http://unitsofmeasure.org",
+                        code: "cm"
+                    },
+                    weight: {
+                        value: parseFloat(weight),
+                        unit: "kg",
+                        system: "http://unitsofmeasure.org",
+                        code: "kg"
+                    },
+                    temperature: {
+                        value: parseFloat(temperature),
+                        unit: "°C",
+                        system: "http://unitsofmeasure.org",
+                        code: "Cel"
+                    },
+                    bloodPressure: {
+                        value: bloodPressure, // 血压以字符串形式存储
+                        unit: "mmHg",
+                        system: "http://unitsofmeasure.org",
+                        code: "mmHg"
+                    },
+                    bloodSugar: {
+                        value: parseFloat(bloodSugar),
+                        unit: "mg/dL",
+                        system: "http://unitsofmeasure.org",
+                        code: "mg/dL"
+                    }
+                }
+            };
+
+            records.push(record); // 将记录添加到数组中
+            displayRecords(); // 更新记录显示
+            clearInputs(); // 清空输入框
+        }
+
+        function generateId() {
+            return Math.floor(Math.random() * 100000000).toString(); // 生成随机 ID
+        }
+
+        function displayRecords() {
+            const tableBody = document.getElementById('record-table-body');
+            tableBody.innerHTML = ''; // 清空现有数据
+            records.forEach((record, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${index + 1}</td>
+                                 <td>${record.valueQuantity.height.value} ${record.valueQuantity.height.unit}</td>
+                                 <td>${record.valueQuantity.weight.value} ${record.valueQuantity.weight.unit}</td>
+                                 <td>${record.valueQuantity.temperature.value} ${record.valueQuantity.temperature.unit}</td>
+                                 <td>${record.valueQuantity.bloodPressure.value} ${record.valueQuantity.bloodPressure.unit}</td>
+                                 <td>${record.valueQuantity.bloodSugar.value} ${record.valueQuantity.bloodSugar.unit}</td>`;
+                tableBody.appendChild(row);
+            });
+            document.getElementById('json-output').innerHTML = `<pre>${JSON.stringify(records, null, 2)}</pre>`;
+        }
+
+        function clearInputs() {
+            document.getElementById('height').value = '';
+            document.getElementById('weight').value = '';
+            document.getElementById('temperature').value = '';
+            document.getElementById('blood-pressure').value = '';
+            document.getElementById('blood-sugar').value = '';
+        }
+
+        // 页面加载时获取病人信息
+        window.onload = getPatientData;
+    </script>
+</head>
+<body>
+    
+<h2>病人信息</h2>
+<p>病人名字: <span id="patient-name"></span></p>
+<p>病人ID: <span id="patient-id"></span></p>
+<h2>生理检测记录</h2>
+
+<table>
+    <tr>
+        <th>身高 (cm)</th>
+        <th>体重 (kg)</th>
+        <th>体温 (°C)</th>
+        <th>血压 (mmHg)</th>
+        <th>血糖 (mg/dL)</th>
+    </tr>
+    <tr>
+        <td><input type="number" id="height" placeholder="身高"></td>
+        <td><input type="number" id="weight" placeholder="体重"></td>
+        <td><input type="number" id="temperature" placeholder="体温"></td>
+        <td><input type="text" id="blood-pressure" placeholder="例如: 120/80"></td>
+        <td><input type="number" id="blood-sugar" placeholder="血糖"></td>
+    </tr>
+</table>
+
+<button onclick="submitData()">记录</button>
+
+<table>
+    <thead>
+        <tr>
+            <th>记录编号</th>
+            <th>身高 (cm)</th>
+            <th>体重 (kg)</th>
+            <th>体温 (°C)</th>
+            <th>血压 (mmHg)</th>
+            <th>血糖 (mg/dL)</th>
+        </tr>
+    </thead>
+    <tbody id="record-table-body"></tbody>
+</table>
+
+<div class="json-output" id="json-output"><pre></pre></div>
+
+
+</body>
+</html>
